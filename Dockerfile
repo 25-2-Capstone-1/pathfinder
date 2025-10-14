@@ -16,7 +16,8 @@ ENV FLASK_APP=app.py
 ENV FLASK_RUN_HOST=0.0.0.0
 ENV PORT=5000
 
-# 6. Gunicorn 실행 명령
-# --pythonpath . 옵션을 추가하여 Gunicorn이 현재 작업 디렉토리(`/app_service`)를
-# 파이썬 모듈 경로에서 찾도록
-CMD gunicorn --bind 0.0.0.0:$PORT -w 4 --pythonpath . app:app
+ENV PYTHONPATH /app_service
+
+# 6. Gunicorn 실행 명령 (프로덕션 준비)
+# --pythonpath . 옵션을 제거하고 PYTHONPATH 환경 변수에 의존
+CMD gunicorn --bind 0.0.0.0:$PORT -w 4 app:app
