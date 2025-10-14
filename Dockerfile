@@ -2,7 +2,7 @@
 FROM python:3.10-slim
 
 # 2. 작업 디렉토리 설정
-WORKDIR /app
+WORKDIR /app_service
 
 # 3. 의존성 복사 & 설치
 COPY requirements.txt .
