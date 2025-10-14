@@ -22,4 +22,5 @@ ENV PORT=5000
 
 # --bind 0.0.0.0:5000
 # -w 4는 4개의 워커 프로세스를 사용하여
-CMD ["gunicorn", "--bind", "0.0.0.0:${PORT}, -w, 4, app:app"]
+CMD gunicorn --bind 0.0.0.0:$PORT -w 4 app:app
+
