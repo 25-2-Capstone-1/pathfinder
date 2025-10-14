@@ -10,7 +10,7 @@ load_dotenv()
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 
 
-
+#haversine 공식: 두 지점 간의 대원거리(구면거리)를 계산하는 공식
 def haversine(lat1, lon1, lat2, lon2):
     """Calculate distance between two coordinates in meters."""
     R = 6371000  # Earth radius in meters

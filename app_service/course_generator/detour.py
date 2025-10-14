@@ -1,10 +1,11 @@
 import math
 import logging
 from app_service.utils import haversine, round_coord, METERS_PER_DEGREE_LATITUDE
-from app_service.course_generator.base import build_course_response, calculate_path_details
+from app_service.course_generator.response_creator import build_course_response, calculate_path_details
 
 def generate_detour_course(start, end, target_distance, tolerance):
     logging.info("Attempting to generate a 'detour' course.")
+
     direct_dist = haversine(start[0], start[1], end[0], end[1])
     extra_needed = target_distance - direct_dist
     mid_lat, mid_lng = (start[0] + end[0]) / 2, (start[1] + end[1]) / 2
@@ -17,6 +18,8 @@ def generate_detour_course(start, end, target_distance, tolerance):
     offset_dist_meters = extra_needed / 2
     total_dist = 0
 
+    #거리가 너무 차이가 날 경우, 오차 범위를 벗어남
+    #억지로 offset과의 거리를 조절하여 적절한 값이 있는지 확인
     for multiplier in [1.0, 0.7, 1.3, 0.5, 1.5]:
         adjusted_offset_dist = offset_dist_meters * multiplier
         offset_lat_degrees = adjusted_offset_dist / METERS_PER_DEGREE_LATITUDE
@@ -29,7 +32,7 @@ def generate_detour_course(start, end, target_distance, tolerance):
         
         waypoint = round_coord((wp_lat, wp_lng))
         path = [start, waypoint, end]
-        total_dist, _ = calculate_path_details(path)
+        total_dist, segment = calculate_path_details(path)
 
         logging.info(f"Trying waypoint {waypoint} -> Total distance: {total_dist:.0f}m")
         if target_distance * (1 - tolerance) <= total_dist <= target_distance * (1 + tolerance):

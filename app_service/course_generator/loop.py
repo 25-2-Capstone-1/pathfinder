@@ -1,7 +1,7 @@
 import math
 import logging
 from app_service.utils import haversine, round_coord, METERS_PER_DEGREE_LATITUDE
-from app_service.course_generator.base import build_course_response, calculate_path_details
+from app_service.course_generator.response_creator import build_course_response, calculate_path_details
 
 def generate_loop_waypoints(center, radius, num_waypoints):
     waypoints = []
@@ -35,7 +35,7 @@ def generate_loop_course(start, end, target_distance, tolerance):
         loop_radius *= adjustment_factor
         waypoints = generate_loop_waypoints(center_point, loop_radius, num_waypoints)
         path = [start] + waypoints + ([start] if is_pure_loop else [end])
-        total_dist, _ = calculate_path_details(path)
+        total_dist, segment = calculate_path_details(path)
         logging.info(f"Adjusted loop: radius {loop_radius:.0f}m, dist {total_dist:.0f}m")
 
-    return build_course_response('loop', path, total_dist, target_distance, waypoints, loop_radius=loop_radius)
+    return build_course_response('loop', path, total_dist, target_distance, waypoints)
