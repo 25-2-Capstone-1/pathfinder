@@ -6,8 +6,14 @@ from dotenv import load_dotenv
 import time
 
 
-load_dotenv()
+if os.path.exists(".env"):
+    load_dotenv()
+
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+
+if not GOOGLE_API_KEY:
+    raise ValueError("GOOGLE_API_KEY is not set!")
+
 
 
 #haversine 공식: 두 지점 간의 대원거리(구면거리)를 계산하는 공식
