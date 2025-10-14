@@ -43,5 +43,5 @@ jobs:
             docker stop pathfinder || true
             docker rm pathfinder || true
             docker run -d --name pathfinder -p 5000:5000 \
-              -e GOOGLE_API_KEY=${{ secrets.GOOGLE_API_KEY }} \
-              ${{ secrets.DOCKERHUB_USERNAME }}/pathfinder:latest
+              -e GOOGLE_API_KEY="${{ secrets.GOOGLE_API_KEY }}" \
+              "${{ secrets.DOCKERHUB_USERNAME }}/pathfinder:latest"
