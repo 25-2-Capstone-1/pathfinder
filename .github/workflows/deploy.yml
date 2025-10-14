@@ -14,34 +14,46 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Log in to Docker Hub
+        # Docker Hub에 로그인하여 이미지를 Push할 수 있게 합니다.
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build Docker image
+        # Docker 이미지를 빌드하고 Docker Hub 사용자 이름으로 태그를 지정합니다.
         run: |
           docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/pathfinder:latest .
 
       - name: Push Docker image
+        # 빌드된 이미지를 Docker Hub에 푸시합니다.
         run: |
           docker push ${{ secrets.DOCKERHUB_USERNAME }}/pathfinder:latest
 
   deploy-to-ec2:
     runs-on: ubuntu-latest
-    needs: build-and-push
+    needs: build-and-push # build-and-push 작업이 성공한 후에 실행
 
     steps:
       - name: Deploy to EC2 via SSH
+        # appleboy/ssh-action을 사용하여 EC2 서버에 접속하고 배포 명령을 실행합니다.
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
+            # 1. Docker Hub에서 최신 이미지를 가져옵니다.
             docker pull ${{ secrets.DOCKERHUB_USERNAME }}/pathfinder:latest
+
+            # 2. 기존 컨테이너를 중지하고 제거합니다. 
+            # (|| true는 컨테이너가 없어도 스크립트가 실패하지 않도록 합니다)
             docker stop pathfinder || true
             docker rm pathfinder || true
-            docker run -d --name pathfinder -p 5000:5000 \
-              -e GOOGLE_API_KEY=${{ secrets.GOOGLE_API_KEY }} \
-              ${{ secrets.DOCKERHUB_USERNAME }}/pathfinder:latest
+            
+            # 3. 새로운 컨테이너를 실행합니다.
+            # -d: 백그라운드에서 실행
+            # --restart unless-stopped: 서버 재부팅 시 자동 재시작
+            # -p 5000:5000: 포트 포워딩
+            # -e: 환경 변수 설정 (API Key)
+            docker run -d --name pathfinder -p 5000:5000 --restart unless-stopped -e GOOGLE_API_KEY="${{ secrets.GOOGLE_API_KEY }}" "${{ secrets.DOCKERHUB_USERNAME }}/pathfinder:latest"
