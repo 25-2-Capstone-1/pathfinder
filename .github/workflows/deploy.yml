@@ -56,9 +56,4 @@ jobs:
             # --restart unless-stopped: 서버 재부팅 시 자동 재시작
             # -p 5000:5000: 포트 포워딩
             # -e: 환경 변수 설정 (API Key)
-            docker run -d \
-              --name pathfinder \
-              -p 5000:5000 \
-              --restart unless-stopped \
-              -e GOOGLE_API_KEY="${{ secrets.GOOGLE_API_KEY }}" \
-              "${{ secrets.DOCKERHUB_USERNAME }}/pathfinder:latest"
+            docker run -d --name pathfinder -p 5000:5000 --restart unless-stopped -e GOOGLE_API_KEY="${{ secrets.GOOGLE_API_KEY }}" "${{ secrets.DOCKERHUB_USERNAME }}/pathfinder:latest"
