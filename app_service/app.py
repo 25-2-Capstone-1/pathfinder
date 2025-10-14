@@ -20,7 +20,7 @@ from course_generator.loop import generate_loop_course
 
 # --- Setup ---
 load_dotenv()
-app = Flask(__name__)
+app = Flask(__name__) #Dockerfile에 명시 해야 함
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # --- Core Functions ---
