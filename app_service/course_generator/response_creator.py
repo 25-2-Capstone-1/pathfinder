@@ -61,7 +61,7 @@ def build_course_response(strategy, path, target_distance, course_number, **kwar
         'distance': round(total_distance, 1),
         'estimatedTime': estimated_time,
         'difficulty': difficulty,
-        'description': f'서울 도심을 따라 테스트 코스{total_distance}km 입니다'
+        'description': f'서울 도심을 따라 테스트 코스{total_distance}m 입니다'
         #'description': kwargs.get('description', f'약 {round(total_distance / 1000, 1)}km 코스입니다.')
     }
 

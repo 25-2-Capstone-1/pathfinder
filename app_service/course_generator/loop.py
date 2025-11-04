@@ -1,12 +1,12 @@
 import math
 import logging
-from app_service.utils import haversine, round_coord
+from app_service.utils import haversine, round_coord, MAX_ROUTE_ID, MAX_WAYPOINTS_PER_ROUTE
 from app_service.course_generator.response_creator import build_course_response, calculate_path_details
 
 #center: (lat, lng)를 중심으로 radius 미터 반경의 원형 경로를 생성
 # waypoints 수에 따라 원형 경로의 점들을 생성
 # 세부적인 조정에 따라서 num_waypoints 조절 할 수 있도록(프런트, CentralServer와 협력)
-def generate_loop_waypoints(center, radius, num_waypoints):
+def generate_loop_waypoints(center, radius, num_waypoints, routeId):
     waypoints = []
     center_lat = center[0]
     center_lng = center[1]
@@ -22,9 +22,10 @@ def generate_loop_waypoints(center, radius, num_waypoints):
     #num_waypoints도 거리 관계 없이 고정할 것인지 아니면 거리 비례로 할 것인지 결정 필요
     #경로를 여러 개 만들려면 angle의 시작 점을 다르게 해서 조정 필요
     #ex: 시작을 0, π/4, π/2, 3π/4 ... 등으로 조정
+    start_angle = (2 * math.pi * routeId) / 5  # 5는 최대 경로 수에 따라 조정 필요
 
     for i in range(num_waypoints):
-        angle = (2 * math.pi * i) / num_waypoints #2π는 원 전체, i/num_waypoints는 분할된 각도->ex: 4등분이면 0, π/2, π, 3π/2
+        angle = start_angle+(2 * math.pi * i) / num_waypoints #2π는 원 전체, i/num_waypoints는 분할된 각도->ex: 4등분이면 0, π/2, π, 3π/2
         delta_lat = radius * math.cos(angle) / METERS_PER_DEGREE_LATITUDE
 
         #wp_lat = r*cos(angle) -> 위도는 그냥 평면과 같이 계산해도 무방함
@@ -39,6 +40,7 @@ def generate_loop_waypoints(center, radius, num_waypoints):
 
     return waypoints
 
+#num_waypoints = 15로 일단 통일, 생성 루트 수는 5개로 제한
 def generate_loop_course(start, end, target_distance, tolerance):
     logging.info("Attempting to generate a 'loop' course.")
 
@@ -58,32 +60,28 @@ def generate_loop_course(start, end, target_distance, tolerance):
 
     #num_waypoints = max(4, min(8, int(loop_radius / 200)))
     #waypoint 수 도 조정을 해야함
-    num_waypoints = max(target_distance // 150, 10)  # 최소 10개, 최대 66개(10000m 기준)
 
-    waypoints = generate_loop_waypoints(center_point, loop_radius, num_waypoints)
-    #시작과 끝이 동일한 경우, 시작점으로 돌아오는 경로 생성
-    #path = [start, wp1, wp2, wp3, ..., wpN, start]
-    #시작과 끝이 다른 경우, 끝점으로 가는 경로 생성
-    #path = [start, wp1, wp2, wp3, ..., wpN, end]
+    response_array = []
+    for i in range(MAX_ROUTE_ID):
+        routeId = i
+        waypoints = generate_loop_waypoints(center_point, loop_radius, MAX_WAYPOINTS_PER_ROUTE, routeId)
+        path = [start] + waypoints
+        if is_start_end_same:
+            path.append(start)
+        else:
+            path.append(end)
+        total_dist, needless = calculate_path_details(path)
 
-    path = [start] + waypoints
-    if is_start_end_same:
-        path.append(start)
+        logging.info(f"Trying loop route {routeId}: {MAX_WAYPOINTS_PER_ROUTE} waypoints, radius {loop_radius:.0f}m, dist {total_dist:.0f}m")
+        if target_distance * (1 - tolerance) <= total_dist <= target_distance * (1 + tolerance):
+            logging.info(f"Found suitable loop course with route ID {routeId}.")
+            response_array.append(build_course_response('loop', path, target_distance, routeId))
+
+    if response_array:
+        return {
+            'success': True,
+            'course': response_array}
     else:
-        path.append(end)
-    total_dist, needless = calculate_path_details(path)
-    
-    logging.info(f"Initial loop: {num_waypoints} waypoints, radius {loop_radius:.0f}m, dist {total_dist:.0f}m")
-    #너무 거리 차이가 심할 경우 다시 생성하기
-    if not (target_distance * (1 - tolerance) <= total_dist <= target_distance * (1 + tolerance)) and total_dist > 0:
-        #조정 계수: adjustment_factor
-        adjustment_factor = target_distance / total_dist
-        #반지름을 개선해서 다시 웨이포인트 생성
-        loop_radius *= adjustment_factor
-        waypoints = generate_loop_waypoints(center_point, loop_radius, num_waypoints)
+        logging.info("Could not find a suitable loop course within tolerance.")
+        return {'success': False, 'error': 'Could not generate a loop course within the specified tolerance.'}
 
-        path = [start] + waypoints + ([start] if is_start_end_same else [end])
-        total_dist, segment = calculate_path_details(path)
-        logging.info(f"Adjusted loop: radius {loop_radius:.0f}m, dist {total_dist:.0f}m")
-
-    return build_course_response('loop', path, total_dist, target_distance, waypoints)

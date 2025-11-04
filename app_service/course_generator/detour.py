@@ -9,6 +9,7 @@ from app_service.course_generator.response_creator import build_course_response,
 
 #기본적인 동작은 loop와 같음->loop 참고
 #삼각형과 비슷한 코스 생성될 예정(시작 -> 중간점 -> 끝)
+# 그러므로 waypoint는 하나만 생성됨
 def generate_detour_course(start, end, target_distance, tolerance):
     logging.info("Attempting to generate a 'detour' course.")
 
