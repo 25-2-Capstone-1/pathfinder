@@ -54,7 +54,8 @@ def verify_with_google(course, use_google_api):
     logging.info(f"Verified distance: {total_verified_dist:.0f}m (Estimated: {course['total_distance']:.0f}m)")
     return course
 
-def create_course(start, end, target_distance, use_google_api, tolerance=0.1, strategy='auto'):
+#어떤 전략 사용할 지 정하는 함수
+def create_course(start, end, target_distance, use_google_api, tolerance=0.3, strategy='auto'):
     start_coord = parse_location(start)
     end_coord = parse_location(end)
 

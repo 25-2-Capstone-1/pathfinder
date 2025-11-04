@@ -1,6 +1,7 @@
 import math
 
-METERS_PER_DEGREE_LATITUDE = 111000
+# 위도 1 도당 미터 수
+
 
 def haversine(lat1, lon1, lat2, lon2):
     """Calculate distance between two coordinates in meters."""

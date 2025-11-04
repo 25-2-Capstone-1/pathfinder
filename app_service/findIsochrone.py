@@ -2,12 +2,11 @@ import math
 import requests
 from collections import deque
 import os
-from dotenv import load_dotenv
+from dotenv import load_dotenv, find_dotenv
 import time
 
 
-if os.path.exists(".env"):
-    load_dotenv()
+load_dotenv(find_dotenv())
 
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 
