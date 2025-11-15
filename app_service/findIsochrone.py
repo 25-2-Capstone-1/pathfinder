@@ -5,6 +5,7 @@ import os
 from dotenv import load_dotenv, find_dotenv
 import time
 
+from app_service.utils import round_coord
 
 load_dotenv(find_dotenv())
 

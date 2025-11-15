@@ -16,7 +16,7 @@ from utils import haversine, round_coord
 from findIsochrone import get_distances_batch
 from course_generator.detour import generate_detour_course
 from course_generator.loop import generate_loop_course
-#from course_generator.scenic import generate_scenic_course
+from course_generator.direc_creator import get_directions_single
 
 # --- Setup ---
 load_dotenv()
@@ -139,6 +139,27 @@ def suggest_course_endpoint():
         return jsonify(course_result), 422
 
     return jsonify(course_result)
+@app.route('/api/route/directions_single', methods=['POST'])
+def get_directions_endpoint():
+    data = request.get_json()
+    if not data:
+        return jsonify({'success': False, 'error': 'Invalid JSON payload.'}), 400
+
+    required_fields = ['myPoint_lat', 'myPoint_lng', 'startPoint_lat', 'startPoint_lng']
+    if not all(field in data for field in required_fields):
+        missing_field = [field for field in required_fields if field not in data]
+        return jsonify({'success': False, 'error': f'Missing required fields: {missing_field}'}), 400
+
+    origin_lat = data['myPoint_lat']
+    origin_lng = data['myPoint_lng']
+    destination_lat = data['startPoint_lat']
+    destination_lng = data['startPoint_lng']
+    # directions_single 함수를 사용하여 경로 데이터를 가져옴
+    directions_response = get_directions_single(origin_lat, origin_lng, destination_lat, destination_lng)
+    if not directions_response:
+        return jsonify({'success': False, 'error': 'Failed to retrieve directions from Google API.'}), 500
+
+    return jsonify(directions_response)
 
 #@app.route('/api/route/recommended', methods=['GET'])
 ##굳이 recommend와 recommended를 post와 get으로 나눌 필요가 있는지?
