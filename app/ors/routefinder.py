@@ -9,8 +9,8 @@ from app.utils import haversine #도커 배포용
 
 load_dotenv()
 #GRAPHHOPPER_URL = "http://localhost:8989" #로컬 테스트용
-#GRAPHHOPPER_URL = os.getenv("GRAPHHOPPER_URL") #graphhopper 서버용 테스트
-GRAPHHOPPER_URL = os.getenv("GRAPHHOPPER_EC2_URL") #실 배포용
+GRAPHHOPPER_URL = os.getenv("GRAPHHOPPER_URL") #graphhopper 서버테스트/ 실배포 
+#GRAPHHOPPER_URL = os.getenv("GRAPHHOPPER_EC2_URL") #배포 전 도커 테스트용
 VEHICLE = "car"
 LOCALE = "ko"
 
