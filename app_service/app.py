@@ -1,5 +1,4 @@
 import os
-
 # Add the project root directory to the Python path to resolve import errors
 project_root = os.path.abspath(os.path.dirname(__file__))
 
