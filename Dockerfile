@@ -13,9 +13,8 @@ COPY . .
 
 # 5. 환경변수 설정
 ENV PYTHONPATH="/app"
-ENV FLASK_APP=app/app.py
 ENV FLASK_RUN_HOST=0.0.0.0
 ENV PORT=5000
 
 # 6. Gunicorn 실행 (Flask 객체: app/app.py 안의 app)
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "-w", "4", "app:app"]
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "-w", "4", "app.app:app"]
