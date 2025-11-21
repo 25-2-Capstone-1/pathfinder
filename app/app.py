@@ -11,7 +11,7 @@ from .utils import haversine, round_coord #도커용. 로컬에서는 다르게
 from .findIsochrone import get_distances_batch #도커용. 로컬에서는 다르게
 from .course_generator.detour import generate_detour_course
 from .course_generator.loop import generate_loop_course
-from .ors.routefinder import start2end, my2start, get_directions
+from ors.routefinder import start2end, my2start, get_directions
 
 app = Flask(__name__) #Dockerfile에 명시 해야 함
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
