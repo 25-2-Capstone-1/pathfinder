@@ -11,7 +11,7 @@ from .utils import haversine, round_coord #도커용. 로컬에서는 다르게
 from .findIsochrone import get_distances_batch #도커용. 로컬에서는 다르게
 from .course_generator.detour import generate_detour_course
 from .course_generator.loop import generate_loop_course
-from .ors import routefinder
+from .ors.routefinder import start2end, my2start, get_directions
 
 app = Flask(__name__) #Dockerfile에 명시 해야 함
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -150,7 +150,7 @@ def get_directions_endpoint():
     course_arr = data['course']   # multiple course list
 
     # ORS Directions Request ors/routefinder.py의 get_directions_array 함수 사용
-    directions = routefinder.get_directions(origin_lat, origin_lng, course_arr)
+    directions = get_directions(origin_lat, origin_lng, course_arr)
 
     if not directions:
         return jsonify({'success': False, 'error': 'Failed to retrieve directions from Graphhopper.'}), 500
@@ -175,10 +175,10 @@ def find_ways():
         logging.info(f"Course received: {course}")
     # ORS Directions Request ors/routefinder.py의 my2start 함수 사용
         #mys2start_route는 최상단 요소인 mypoint를 활용하므로 반드시 data 전체를 넘겨줘야 함
-        my2start_route = routefinder.my2start(my_lat, my_lng,course)
+        my2start_route = my2start(my_lat, my_lng,course)
         logging.info(f"my2start route: {my2start_route}")
 
-        start2end_route = routefinder.start2end( course)
+        start2end_route = start2end( course)
         logging.info(f"start2end route: {start2end_route}")
 
         directions = {'my2start': my2start_route, 'start2end': start2end_route}
