@@ -1,11 +1,7 @@
 import math
 import logging
 
-from flask import json
-
 from app.utils import haversine, round_coord
-from app.course_generator.response_creator import build_course_response, calculate_path_details
-
 
 #기본적인 동작은 loop와 같음->loop 참고
 #삼각형과 비슷한 코스 생성될 예정(시작 -> 중간점 -> 끝)
@@ -17,15 +13,12 @@ def generate_detour_course(start, end, target_distance, tolerance):
     extra_needed = target_distance - direct_dist
     mid_lat, mid_lng = (start[0] + end[0]) / 2, (start[1] + end[1]) / 2
     delta_lat, delta_lng = end[0] - start[0], end[1] - start[1]
-    
-    path_length = math.sqrt(delta_lat**2 + delta_lng**2)
 
     #10m 이내의 거리일 경우 loop로 넘어감
     if direct_dist < 10:
         return {'success': False, 'error': 'Detour strategy requires different start and end points.', 'suggestion': "Try the 'loop' strategy."}
 
     offset_dist_meters = extra_needed / 2
-    total_dist = 0
 
     METERS_PER_DEGREE_LATITUDE = 111000
     #거리가 너무 차이가 날 경우, 오차 범위를 벗어남
@@ -49,6 +42,8 @@ def generate_detour_course(start, end, target_distance, tolerance):
         #여기서는 waypoint가 하나만 생성됨
         waypoint = round_coord((wp_lat, wp_lng))
         path = [start, waypoint, end]
+
+        from response_creator import calculate_path_details, build_course_response
         total_dist, segment = calculate_path_details(path)
 
         logging.info(f"Rout Number {route_number} -> Trying waypoint {waypoint} -> Total distance: {total_dist:.0f}m")

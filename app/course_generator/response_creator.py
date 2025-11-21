@@ -1,4 +1,3 @@
-import math
 from app.utils import haversine
 
 

@@ -1,18 +1,24 @@
+# python
 import os
-# Add the project root directory to the Python path to resolve import errors
-#project_root = os.path.abspath(os.path.dirname(__file__))
-
-from flask import Flask, request, jsonify
+import sys
 import logging
 
-# Local application imports
-# 로컬과 도커에서의 import 과정에 따라 오류가 생길 수 있음
-from .utils import haversine, round_coord #도커용. 로컬에서는 다르게
-from .findIsochrone import get_distances_batch #도커용. 로컬에서는 다르게
-from .course_generator.detour import generate_detour_course
-from .course_generator.loop import generate_loop_course
-from ors.routefinder import start2end, my2start, get_directions
+# 프로젝트 루트를 Python 경로에 추가하여 다양한 실행 환경에서 import 문제 방지
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
 
+# 로깅 기본 설정 (중복 설정 방지)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+# 다양한 실행 컨텍스트에 대응하도록 절대 import -> 상대 import 순서로 시도
+    # 도커 / 루트 경로 기준 설치된 경우
+from app.utils import haversine, round_coord
+from app.findIsochrone import get_distances_batch
+from app.course_generator.detour import generate_detour_course
+from app.course_generator.loop import generate_loop_course
+from app.ors.routefinder import start2end, my2start, get_directions
+from flask import Flask, jsonify, request
 app = Flask(__name__) #Dockerfile에 명시 해야 함
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 

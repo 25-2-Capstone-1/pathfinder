@@ -5,7 +5,7 @@ import os
 from dotenv import load_dotenv, find_dotenv
 import time
 
-from app.utils import round_coord
+
 
 load_dotenv(find_dotenv())
 
@@ -68,6 +68,7 @@ def generate_neighbors(point, step_m=100):
     """
     Generate 4 neighboring coordinates (N, S, E, W) at step_m meters distance.
     """
+    from app.utils import round_coord
     lat, lng = point
     delta_lat = step_m / 111_000  # ~111km per degree latitude
     delta_lng = step_m / (111_000 * math.cos(math.radians(lat)))
@@ -88,6 +89,7 @@ def expand_by_distance(origin, max_distance, step_m=100, max_points=200):
     Expand from origin using BFS, finding all points within max_distance.
     Uses batch API calls for efficiency.
     """
+    from app.utils import round_coord
     origin = round_coord(origin)
     visited = {origin}
     reachable = []
@@ -140,6 +142,7 @@ def expand_by_straight_line(origin, max_distance, step_m=100, max_points=200):
     Alternative: expand using straight-line distance (no API calls).
     Much faster but less accurate for walking routes.
     """
+    from app.utils import round_coord, haversine
     origin = round_coord(origin)
     visited = {origin}
     reachable = []
