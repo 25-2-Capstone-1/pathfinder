@@ -18,4 +18,4 @@ ENV PYTHONPATH="/app"
  # 중요: app 패키지를 Python 경로에 추가
 
 # 6. Gunicorn 실행
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "-w", "4", "app.app:app"]
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "-w", "4", "app.main:app"]
