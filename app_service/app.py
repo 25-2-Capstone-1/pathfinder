@@ -1,13 +1,14 @@
 import os
 import sys
 
+from app_service.ors.routefinder import get_directions, my2start
+
 # Add the project root directory to the Python path to resolve import errors
 project_root = os.path.abspath(os.path.dirname(__file__))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
 from flask import Flask, request, jsonify
-import math
 import logging
 from dotenv import load_dotenv
 
@@ -16,10 +17,12 @@ from utils import haversine, round_coord
 from findIsochrone import get_distances_batch
 from course_generator.detour import generate_detour_course
 from course_generator.loop import generate_loop_course
-from course_generator.direc_creator import get_directions_single
+import ors.routefinder
+
 
 # --- Setup ---
-load_dotenv()
+#load_dotenv()
+#GRAPHHOPPER_URL = os.getenv("GRAPHHOPPER_URL", "http://localhost:8989/maps/")
 app = Flask(__name__) #Dockerfile에 명시 해야 함
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -139,29 +142,65 @@ def suggest_course_endpoint():
         return jsonify(course_result), 422
 
     return jsonify(course_result)
-@app.route('/api/route/directions_single', methods=['POST'])
+@app.route('/api/route/directions', methods=['POST'])
 def get_directions_endpoint():
     data = request.get_json()
+
     if not data:
         return jsonify({'success': False, 'error': 'Invalid JSON payload.'}), 400
 
-    required_fields = ['myPoint_lat', 'myPoint_lng', 'startPoint_lat', 'startPoint_lng']
-    if not all(field in data for field in required_fields):
-        missing_field = [field for field in required_fields if field not in data]
-        return jsonify({'success': False, 'error': f'Missing required fields: {missing_field}'}), 400
+    # 필수 필드 확인
+    required_fields = ['myPoint_lat', 'myPoint_lng', 'course']
+    if not all(k in data for k in required_fields):
+        missing = [k for k in required_fields if k not in data]
+        return jsonify({'success': False, 'error': f'Missing required fields: {missing}'}), 400
 
     origin_lat = data['myPoint_lat']
     origin_lng = data['myPoint_lng']
-    destination_lat = data['startPoint_lat']
-    destination_lng = data['startPoint_lng']
-    # directions_single 함수를 사용하여 경로 데이터를 가져옴
-    directions_response = get_directions_single(origin_lat, origin_lng, destination_lat, destination_lng)
-    if not directions_response:
-        return jsonify({'success': False, 'error': 'Failed to retrieve directions from Google API.'}), 500
+    course_arr = data['course']   # multiple course list
 
-    return jsonify(directions_response)
+    # ORS Directions Request ors/routefinder.py의 get_directions_array 함수 사용
+    directions = get_directions(origin_lat, origin_lng, course_arr)
 
-#@app.route('/api/route/recommended', methods=['GET'])
-##굳이 recommend와 recommended를 post와 get으로 나눌 필요가 있는지?
+    if not directions:
+        return jsonify({'success': False, 'error': 'Failed to retrieve directions from Graphhopper.'}), 500
+
+    return jsonify({
+        'success': True,
+        'count': len(directions),
+        'routes': directions
+    }), 200
+
+#mypoint -> startpoint // startpoint -> endpoint
+@app.route('/routes/findway', methods=['POST'])
+def find_ways():
+    data = request.get_json()
+    direction_response = []
+    my_lng = data['myPoint_lng']
+    my_lat = data['myPoint_lat']
+    if not data:
+        return jsonify({'success': False, 'error': 'Invalid JSON payload.'}), 400
+
+    for course in data['course']:
+        logging.info(f"Course received: {course}")
+    # ORS Directions Request ors/routefinder.py의 my2start 함수 사용
+        #mys2start_route는 최상단 요소인 mypoint를 활용하므로 반드시 data 전체를 넘겨줘야 함
+        my2start_route = my2start(my_lat, my_lng,course)
+        logging.info(f"my2start route: {my2start_route}")
+
+        start2end_route = ors.routefinder.start2end( course)
+        logging.info(f"start2end route: {start2end_route}")
+
+        directions = {'my2start': my2start_route, 'start2end': start2end_route}
+        # 필수 필드 확인
+        if not directions:
+            return jsonify({'success': False, 'error': 'Failed to retrieve directions from Graphhopper.'}), 500
+        direction_response.append(directions)
+
+    return jsonify({
+        'success': True,
+        'route': direction_response  # 첫 번째 경로 반환
+    }), 200
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)

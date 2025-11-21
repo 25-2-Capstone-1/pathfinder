@@ -31,7 +31,7 @@ def build_course_response(strategy, path, target_distance, course_number, **kwar
 
     for i in range(1, len(path)-1):
         p_lat, p_lng = path[i][0], path[i][1]
-        waypoints.append({'from': p_lat, 'to': p_lng})
+        waypoints.append({'lat': p_lat, 'lng': p_lng})
     # waypoints 형식 변환 (lat, lng 딕셔너리로)
 
     # 예상 시간 계산 (분 단위, 평균 속도 10km/h)
