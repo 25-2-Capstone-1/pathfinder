@@ -7,11 +7,11 @@ import logging
 
 # Local application imports
 # 로컬과 도커에서의 import 과정에 따라 오류가 생길 수 있음
-from app.utils import haversine, round_coord #도커용. 로컬에서는 다르게
-from app.findIsochrone import get_distances_batch #도커용. 로컬에서는 다르게
-from app.course_generator.detour import generate_detour_course
-from app.course_generator.loop import generate_loop_course
-from app.ors import routefinder
+from .utils import haversine, round_coord #도커용. 로컬에서는 다르게
+from findIsochrone import get_distances_batch #도커용. 로컬에서는 다르게
+from course_generator.detour import generate_detour_course
+from course_generator.loop import generate_loop_course
+from ors import routefinder
 
 app = Flask(__name__) #Dockerfile에 명시 해야 함
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
