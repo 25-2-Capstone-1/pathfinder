@@ -16,5 +16,5 @@ ENV FLASK_APP=app_service/app.py
 ENV FLASK_RUN_HOST=0.0.0.0
 ENV PORT=5000
 
-# 6. Gunicorn 실행 (Flask 객체: app_service/app.py 안의 app)
+# 6. Gunicorn 실행 (Flask 객체: app/app.py 안의 app)
 CMD ["gunicorn", "--bind", "0.0.0.0:5000", "-w", "4", "app_service.app:app"]

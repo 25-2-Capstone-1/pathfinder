@@ -1,7 +1,7 @@
 import math
 import logging
-from app_service.utils import haversine, round_coord, MAX_ROUTE_ID, MAX_WAYPOINTS_PER_ROUTE
-from app_service.course_generator.response_creator import build_course_response, calculate_path_details
+from app.utils import haversine, round_coord, MAX_ROUTE_ID, MAX_WAYPOINTS_PER_ROUTE
+from app.course_generator.response_creator import build_course_response, calculate_path_details
 
 #center: (lat, lng)를 중심으로 radius 미터 반경의 원형 경로를 생성
 # waypoints 수에 따라 원형 경로의 점들을 생성

@@ -1,5 +1,5 @@
 import math
-from app_service.utils import haversine
+from app.utils import haversine
 
 
 def calculate_path_details(path):

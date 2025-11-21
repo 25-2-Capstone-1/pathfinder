@@ -3,8 +3,8 @@ import logging
 
 from flask import json
 
-from app_service.utils import haversine, round_coord
-from app_service.course_generator.response_creator import build_course_response, calculate_path_details
+from app.utils import haversine, round_coord
+from app.course_generator.response_creator import build_course_response, calculate_path_details
 
 
 #기본적인 동작은 loop와 같음->loop 참고
