@@ -12,7 +12,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # 5. 환경변수 설정
-ENV FLASK_APP=app_service/app.py
+ENV FLASK_APP=app/app.py
 ENV FLASK_RUN_HOST=0.0.0.0
 ENV PORT=5000
 
