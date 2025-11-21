@@ -18,4 +18,4 @@ ENV PYTHONPATH="/app"
 
 # 6. Gunicorn 실행
 # app.py → main.py로 변경됨
-CMD ["gunicorn", "--chdir", "/app", "--bind", "0.0.0.0:5000", "-w", "4", "app:main"]
+CMD ["gunicorn", "--chdir", "/app", "--bind", "0.0.0.0:5000", "-w", "4", "main:app"]
