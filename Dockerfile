@@ -9,7 +9,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # 4. 앱 코드 복사
-COPY . .
+COPY . /app/app
 
 # 5. 환경 변수 설정
 ENV FLASK_RUN_HOST=0.0.0.0
