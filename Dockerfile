@@ -15,7 +15,7 @@ COPY . .
 ENV FLASK_RUN_HOST=0.0.0.0
 ENV PORT=5000
 ENV PYTHONPATH="/app"
- # 중요: app 패키지를 Python 경로에 추가
 
 # 6. Gunicorn 실행
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "-w", "4", "app.main:app"]
+# app.py → main.py로 변경됨
+CMD ["gunicorn", "--chdir", "/app", "--bind", "0.0.0.0:5000", "-w", "4", "app.main:app"]
