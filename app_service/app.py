@@ -1,20 +1,18 @@
 import os
-import sys
 
 # Add the project root directory to the Python path to resolve import errors
 project_root = os.path.abspath(os.path.dirname(__file__))
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
 
 from flask import Flask, request, jsonify
 import logging
 
 # Local application imports
+# 로컬과 도커에서의 import 과정에 따라 오류가 생길 수 있음
 from utils import haversine, round_coord
 from findIsochrone import get_distances_batch
 from course_generator.detour import generate_detour_course
 from course_generator.loop import generate_loop_course
-from app_service.ors import routefinder
+from ors import routefinder
 
 app = Flask(__name__) #Dockerfile에 명시 해야 함
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
