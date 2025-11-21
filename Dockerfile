@@ -17,4 +17,4 @@ ENV PORT=5000
 ENV PYTHONPATH="/app"
 
 # 6. Gunicorn 실행
-CMD ["gunicorn", "--chdir", "/app", "--bind", "0.0.0.0:5000", "-w", "4", "main:app"]
+CMD ["gunicorn", "--chdir", "/app", "--bind", "0.0.0.0:5000", "-w", "4", "app.main:app"]
