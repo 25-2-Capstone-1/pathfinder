@@ -6,7 +6,7 @@ from app.utils import haversine, round_coord
 #기본적인 동작은 loop와 같음->loop 참고
 #삼각형과 비슷한 코스 생성될 예정(시작 -> 중간점 -> 끝)
 # 그러므로 waypoint는 하나만 생성됨
-def generate_detour_course(start, end, target_distance, tolerance):
+def generate_detour_course(my, start, end, target_distance, tolerance):
     logging.info("Attempting to generate a 'detour' course.")
 
     direct_dist = haversine(start[0], start[1], end[0], end[1])
@@ -41,7 +41,7 @@ def generate_detour_course(start, end, target_distance, tolerance):
 
         #여기서는 waypoint가 하나만 생성됨
         waypoint = round_coord((wp_lat, wp_lng))
-        path = [start, waypoint, end]
+        path = [my, start, waypoint, end]
 
         from response_creator import calculate_path_details, build_course_response
         total_dist, segment = calculate_path_details(path)

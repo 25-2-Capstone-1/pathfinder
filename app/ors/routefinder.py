@@ -9,18 +9,18 @@ from app.utils import haversine #도커 배포용
 
 load_dotenv()
 #GRAPHHOPPER_URL = "http://localhost:8989" #로컬 테스트용
-GRAPHHOPPER_URL = os.getenv("GRAPHHOPPER_URL") #graphhopper 서버테스트/ 실배포 
+GRAPHHOPPER_URL = os.getenv("GRAPHHOPPER_URL") #graphhopper 서버테스트/ 실배포
 #GRAPHHOPPER_URL = os.getenv("GRAPHHOPPER_EC2_URL") #배포 전 도커 테스트용
 VEHICLE = "car"
 LOCALE = "ko"
 
 
 def extract_coords_arr(course):
-
-    coords = [[course['startPoint']['lng'], course['startPoint']['lat']]]
+    # ✅ FIXED: [lng, lat] → [lat, lng]
+    coords = [[course['startPoint']['lat'], course['startPoint']['lng']]]
     for wp in course['waypoints']:
-        coords.append([wp['lng'], wp['lat']])
-    coords.append([course['endPoint']['lng'], course['endPoint']['lat']])
+        coords.append([wp['lat'], wp['lng']])
+    coords.append([course['endPoint']['lat'], course['endPoint']['lng']])
     return coords
 
 
@@ -57,8 +57,8 @@ def my2start(my_lat, my_lng, course):
     start_lng = course['startPoint']['lng']
     start_lat = course['startPoint']['lat']
 
-    coords = [[my_lng, my_lat],
-              [start_lng, start_lat]]  # [myPoint]에서 [startPoint]로 가는 경로
+    coords = [[my_lat, my_lng],
+              [start_lat, start_lng]]  # [myPoint]에서 [startPoint]로 가는 경로
 
     payload = {
         "points": coords,
@@ -127,7 +127,8 @@ def get_directions(my_lat, my_lng, course_arr):
     results = []
     for course in course_arr:
         coords = extract_coords_arr(course)
-        coords.insert(0, [my_lng, my_lat])
+        # ✅ FIXED: [lng, lat] → [lat, lng]
+        coords.insert(0, [my_lat, my_lng])
 
         payload = {
             "points": coords,

@@ -17,27 +17,23 @@ def calculate_path_details(path):
 이렇게 하면 함수에 전달할 인자의 개수나 이름을 유동적으로 처리할"""
 
 def build_course_response(strategy, path, target_distance, course_number, **kwargs):
+    # path가 비어있거나 유효하지 않은 경우 예외 처리
+    if not path or len(path) < 2:
+        return None
+    my_lng, my_lat = path[0][0], path[0][1]
+    start_lng, start_lat = path[1][0], path[1][1]
+    end_lng, end_lat = path[-1][0], path[-1][1]
 
-    # path_array가 여러 경로를 담고 있다면 첫 번째 경로 사용
-    # 또는 모든 경로를 반환하려면 리스트로 반환
-    if not path:
-        return None #추가적인 에외 처리 해야
-    start_lng, start_lat, end_lng, end_lat = path[0][0], path[0][1], path[-1][0], path[-1][1]
-    waypoints = []
-    # 경로 상세 정보 계산
 
     total_distance, segments = calculate_path_details(path)
-
-    for i in range(1, len(path)-1):
-        p_lat, p_lng = path[i][0], path[i][1]
+    waypoints = []
+    for i in range(2, len(path) - 1): # 시작점(1)과 끝점(-1) 사이의 경로만 waypoints로 넣을 경우 index 2부터 시작
+        p_lng, p_lat = path[i][0], path[i][1] # [lng, lat] 순서 유지
         waypoints.append({'lat': p_lat, 'lng': p_lng})
-    # waypoints 형식 변환 (lat, lng 딕셔너리로)
 
-    # 예상 시간 계산 (분 단위, 평균 속도 10km/h)
-    estimated_time = int((total_distance / 10) * 60)  # 분 단위
 
-    # 난이도 결정 추가적인 요소 반영해야
-    #일단 길이 기반으로 설정했지만, 더 바뀔 수 있음
+    estimated_time = int((total_distance / 10) * 60)  # 분 단위 (속도 10km/h 가정)
+
     if total_distance < 3000:
         difficulty = 'easy'
     elif total_distance < 5000:
@@ -45,27 +41,32 @@ def build_course_response(strategy, path, target_distance, course_number, **kwar
     else:
         difficulty = 'hard'
 
+    # 5. Response 딕셔너리 생성
     response = {
-        'routeId': f'route_{str(course_number)}',#route1, rout2... 이건 번호 어떻게 지정 할 것인가 따라 다름
-        'routeName': f'서울 러닝 코스 {str(course_number)}', #임의의 숫자 부여
-        'startPoint': {
-            'lat': start_lat,
-            'lng': start_lng
-        },
-        'endPoint': {
-            'lat': end_lat,
-            'lng': end_lng
-        },
-        'waypoints': waypoints,
-        'distance': round(total_distance, 1),
-        'estimatedTime': estimated_time,
-        'difficulty': difficulty,
-        'description': f'서울 도심을 따라 테스트 코스{total_distance}m 입니다'
-        #'description': kwargs.get('description', f'약 {round(total_distance / 1000, 1)}km 코스입니다.')
+        "myPoint_lat": my_lat,
+        "myPoint_lng": my_lng,
+        "course": [
+            {
+                "description": f"서울 도심을 따라 테스트 코스{total_distance:.1f}m 입니다",
+                "difficulty": difficulty,
+                "distance": round(total_distance, 1),
+                "endPoint": {
+                    "lat": end_lat,
+                    "lng": end_lng
+                },
+                "estimatedTime": estimated_time,
+                "routeId": f"route_{course_number}",
+                "routeName": f"서울 러닝 코스 {course_number}",
+                "startPoint": {
+                    "lat": start_lat,
+                    "lng": start_lng
+                },
+                "waypoints": waypoints
+            }
+        ]
     }
 
     return response
-
 
 
 

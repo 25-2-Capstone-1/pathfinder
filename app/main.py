@@ -1,34 +1,107 @@
-# python
+import logging
 import os
 import sys
-import logging
 
-# 프로젝트 루트를 Python 경로에 추가하여 다양한 실행 환경에서 import 문제 방지
+from flask import Flask, jsonify, request
+
+# 프로젝트 루트 설정
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
-# 로깅 기본 설정 (중복 설정 방지)
+# 로깅 설정
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# 다양한 실행 컨텍스트에 대응하도록 절대 import -> 상대 import 순서로 시도
-    # 도커 / 루트 경로 기준 설치된 경우
+# 기존 Import 유지
 from app.utils import haversine, round_coord
 from app.findIsochrone import get_distances_batch
 from app.course_generator.detour import generate_detour_course
 from app.course_generator.loop import generate_loop_course
-from app.ors.routefinder import start2end, my2start, get_directions
-from flask import Flask, jsonify, request
-app = Flask(__name__) #Dockerfile에 명시 해야 함
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+from app.ors.routefinder import start2end, my2start
+
+app = Flask(__name__)
+
+
+# --- 1. Helper Functions ---
+
+def calculate_path_details(path):
+    """경로의 총 거리와 구간별 거리를 계산합니다."""
+    total_dist = 0
+    segments = []
+    if not path or len(path) < 2:
+        return 0, []
+
+    for i in range(len(path) - 1):
+        # ✅ FIXED: path는 [lat, lng] 순서로 가정
+        p1_lat, p1_lng = path[i][0], path[i][1]
+        p2_lat, p2_lng = path[i + 1][0], path[i + 1][1]
+        dist = haversine(p1_lat, p1_lng, p2_lat, p2_lng)
+        total_dist += dist
+        segments.append(dist)
+    return total_dist, segments
+
+
+def build_course_response(strategy, path, target_distance, course_number, **kwargs):
+    """경로 데이터를 받아 프론트엔드 요구사항에 맞는 JSON 구조로 변환합니다."""
+    if not path or len(path) < 2:
+        return None
+
+    # ✅ FIXED: path는 [lat, lng] 순서로 가정
+    my_lat, my_lng = path[0][0], path[0][1]
+    start_lat, start_lng = path[1][0], path[1][1]
+    end_lat, end_lng = path[-1][0], path[-1][1]
+
+    # 경로 상세 정보 계산
+    total_distance, segments = calculate_path_details(path)
+
+    # Waypoints 구성
+    waypoints = []
+    for i in range(2, len(path) - 1):
+        # ✅ FIXED: path는 [lat, lng] 순서로 가정
+        p_lat, p_lng = path[i][0], path[i][1]
+        waypoints.append({'lat': p_lat, 'lng': p_lng})
+
+    # 예상 시간 및 난이도
+    estimated_time = int((total_distance / 10) * 60)  # 분 단위
+
+    if total_distance < 3000:
+        difficulty = 'easy'
+    elif total_distance < 5000:
+        difficulty = 'medium'
+    else:
+        difficulty = 'hard'
+
+    # 응답 딕셔너리 구성
+    response = {
+        "myPoint_lat": my_lat,
+        "myPoint_lng": my_lng,
+        "course": [
+            {
+                "description": f"생성된 러닝 코스 {total_distance:.1f}m 입니다",
+                "difficulty": difficulty,
+                "distance": round(total_distance, 1),
+                "endPoint": {"lat": end_lat, "lng": end_lng},
+                "estimatedTime": estimated_time,
+                "routeId": f"route_{course_number}",
+                "routeName": f"러닝 코스 {course_number}",
+                "startPoint": {"lat": start_lat, "lng": start_lng},
+                "waypoints": waypoints
+            }
+        ]
+    }
+    return response
+
 
 # --- Core Functions ---
 
 def parse_location(location):
     if isinstance(location, tuple) and len(location) == 2:
         return round_coord(location)
+    if isinstance(location, dict):
+        return round_coord((location.get('lat'), location.get('lng')))
     logging.warning(f"Geocoding for '{location}' is not implemented.")
     return None
+
 
 def calculate_distance(use_google_api, point1, point2):
     if use_google_api:
@@ -37,166 +110,120 @@ def calculate_distance(use_google_api, point1, point2):
             return dist
     return haversine(point1[0], point1[1], point2[0], point2[1])
 
+
 def verify_with_google(course, use_google_api):
-    if not course.get('success') or not use_google_api:
+    # course가 실패했거나 내용이 없으면 그대로 반환
+    if not course or (isinstance(course, dict) and 'course' not in course):
         return course
-    
-    logging.info("Verifying course with Google API.")
-    path = course['path']
-    total_verified_dist = 0
-    for i in range(len(path) - 1):
-        dist = calculate_distance(use_google_api, path[i], path[i + 1])
-        if dist is not None:
-            total_verified_dist += dist
-    
-    course['verified_distance'] = total_verified_dist
-    logging.info(f"Verified distance: {total_verified_dist:.0f}m (Estimated: {course['total_distance']:.0f}m)")
     return course
 
-#어떤 전략 사용할 지 정하는 함수
-def create_course(start, end, target_distance, use_google_api, tolerance=0.3, strategy='auto'):
+
+def create_course(my, start, end, target_distance, use_google_api, tolerance=0.3, strategy='auto'):
+    my_coord = parse_location(my)
     start_coord = parse_location(start)
     end_coord = parse_location(end)
 
     if not start_coord or not end_coord:
         return {'success': False, 'error': 'Could not parse start or end coordinates.'}
 
-    logging.info(f"Generating course from {start_coord} to {end_coord} for {target_distance}m.")
     direct_dist = calculate_distance(use_google_api, start_coord, end_coord)
-    logging.info(f"Direct haversine distance: {direct_dist:.0f}m.")
 
     if target_distance < direct_dist * (1 - tolerance):
         return {
             'success': False,
-            'error': f'Target distance ({target_distance}m) is shorter than the direct distance ({direct_dist:.0f}m).',
-            'suggestion': f'Please set the target distance to at least {direct_dist:.0f}m.',
-            'direct_distance': direct_dist
+            'error': f'Target distance ({target_distance}m) is shorter than direct distance.',
         }
 
     if strategy == 'auto':
         extra_ratio = (target_distance - direct_dist) / direct_dist if direct_dist > 0 else float('inf')
         strategy = 'detour' if extra_ratio < 0.5 else 'loop'
-    
-    logging.info(f"Selected strategy: {strategy.upper()}")
-    #전략을 다르게 짜기 위한 스크립트
+
     course_generators = {
         'detour': generate_detour_course,
         'loop': generate_loop_course,
-        #'scenic': generate_scenic_course,
     }
     generator_func = course_generators.get(strategy)
-    if not generator_func:
-        return {'success': False, 'error': f'Unknown strategy: {strategy}'}
 
-    course = generator_func(start_coord, end_coord, target_distance, tolerance)
+    course_result = generator_func(my_coord, start_coord, end_coord, target_distance, tolerance)
+    return verify_with_google(course_result, use_google_api)
 
-    return verify_with_google(course, use_google_api)
 
-# --- API Endpoint ---
+# --- API Endpoints ---
 
-@app.route('/api/route/recommend', methods=['POST'])
-def suggest_course_endpoint():
-    data = request.get_json()
-    if not data:
-        return jsonify({'success': False, 'error': 'Invalid JSON payload.'}), 400
-
-    #required_fields = ['start', 'end', 'target_distance']
-    required_fields = ['myPoint_lat', 'myPoint_long',
-    'startPoint_lat', 'startPoint_long',
-    'endPoint_lat', 'endPoint_long',
-    'target_distance',
-    'slope',
-    'traffic_lights',
-    'traffic_congestion']
-
-    if not all(field in data for field in required_fields):
-        missing_field = [field for field in required_fields if field not in data]
-        return jsonify({'success': False, 'error': f'Missing required fields: {missing_field}'}), 400
-
-    try:
-        start_point = (data['startPoint_lat'], data['startPoint_long'])
-        end_point = (data['endPoint_lat'], data['endPoint_long'])
-        target_dist = int(data['target_distance'])
-        
-        if 'myPoint_lat' in data and 'myPoint_long' in data:
-            current_loc = (data['myPoint_lat'], data['myPoint_long'])
-            logging.info(f"Received current location (unused): {current_loc}")
-
-    except (TypeError, KeyError, ValueError):
-        return jsonify({'success': False, 'error': 'Invalid data format for start/end points or target_distance.'}), 400
-
-    use_google = request.args.get('use_google', 'false').lower() == 'true'
-    
-    course_result = create_course(
-        start=start_point,
-        end=end_point,
-        target_distance=target_dist,
-        use_google_api=use_google
-    )
-
-    if not course_result.get('success'):
-        return jsonify(course_result), 422
-
-    return jsonify(course_result)
-@app.route('/api/route/directions', methods=['POST'])
-def get_directions_endpoint():
-    data = request.get_json()
-
-    if not data:
-        return jsonify({'success': False, 'error': 'Invalid JSON payload.'}), 400
-
-    # 필수 필드 확인
-    required_fields = ['myPoint_lat', 'myPoint_lng', 'course']
-    if not all(k in data for k in required_fields):
-        missing = [k for k in required_fields if k not in data]
-        return jsonify({'success': False, 'error': f'Missing required fields: {missing}'}), 400
-
-    origin_lat = data['myPoint_lat']
-    origin_lng = data['myPoint_lng']
-    course_arr = data['course']   # multiple course list
-
-    # ORS Directions Request ors/routefinder.py의 get_directions_array 함수 사용
-    directions = get_directions(origin_lat, origin_lng, course_arr)
-
-    if not directions:
-        return jsonify({'success': False, 'error': 'Failed to retrieve directions from Graphhopper.'}), 500
-
-    return jsonify({
-        'success': True,
-        'count': len(directions),
-        'routes': directions
-    }), 200
-
-#mypoint -> startpoint // startpoint -> endpoint
 @app.route('/routes/findway', methods=['POST'])
 def find_ways():
-    data = request.get_json()
-    direction_response = []
-    my_lng = data['myPoint_lng']
-    my_lat = data['myPoint_lat']
-    if not data:
-        return jsonify({'success': False, 'error': 'Invalid JSON payload.'}), 400
+    info_input = request.get_json()
+    if not info_input:
+        return jsonify({'success': False, 'error': 'No JSON data'}), 400
 
-    for course in data['course']:
-        logging.info(f"Course received: {course}")
-    # ORS Directions Request ors/routefinder.py의 my2start 함수 사용
-        #mys2start_route는 최상단 요소인 mypoint를 활용하므로 반드시 data 전체를 넘겨줘야 함
-        my2start_route = my2start(my_lat, my_lng,course)
-        logging.info(f"my2start route: {my2start_route}")
+    try:
+        # 1. 입력 파싱
+        my_data = info_input.get('myPoint', {})
+        start_data = info_input.get('startPoint', {})
+        end_data = info_input.get('endPoint', {})
 
-        start2end_route = start2end( course)
-        logging.info(f"start2end route: {start2end_route}")
+        if not (my_data and start_data and end_data):
+            return jsonify({'success': False, 'error': 'Missing point data'}), 400
 
-        directions = {'my2start': my2start_route, 'start2end': start2end_route}
-        # 필수 필드 확인
-        if not directions:
-            return jsonify({'success': False, 'error': 'Failed to retrieve directions from Graphhopper.'}), 500
-        direction_response.append(directions)
+        my = (my_data['lat'], my_data['lng'])
+        start = (start_data['lat'], start_data['lng'])
+        end = (end_data['lat'], end_data['lng'])
+        target_distance = info_input.get('targetDistance')
 
-    return jsonify({
-        'success': True,
-        'route': direction_response  # 첫 번째 경로 반환
-    }), 200
+        # 2. 코스 생성
+        data = create_course(my, start, end, target_distance, use_google_api=False)
+
+        # 3. 에러 체크
+        if not data or (isinstance(data, dict) and 'error' in data):
+            return jsonify(data if data else {'success': False, 'error': 'Course generation failed'}), 400
+
+        direction_response = []
+
+        # data 구조: { 'success': True, 'course': [ {build_course_response 결과}, ... ] }
+        # build_course_response 결과: { "myPoint_lat":..., "course": [ {실제 코스} ] }
+        if not data.get('course'):
+            return jsonify({'success': False, 'error': 'No course data generated'}), 400
+
+        for response_wrapper in data['course']:
+            # response_wrapper: { "myPoint_lat":..., "course": [ {실제 코스 정보} ] }
+            #각각의 요소를 탐색함
+            if not response_wrapper.get('course'):
+                continue
+
+            #실제 응답의 첫 번째 요소-> 실제 코스
+            actual_course_info = response_wrapper['course'][0]
+
+            # 🔍 디버깅 로그
+            logging.info(f"🔍 actual_course_info keys: {actual_course_info.keys()}")
+            logging.info(f"🔍 startPoint: {actual_course_info.get('startPoint')}")
+
+            #myPoint를 lat, lng 형태로 get으로 받았기 때문에 순서 반대로 lng, lat이 되도록 넣기
+            my2start_route = my2start(my[1], my[0], actual_course_info)
+            start2end_route = start2end(actual_course_info)
+
+            directions = {
+                'my2start': my2start_route,
+                'start2end': start2end_route,
+                # 프론트엔드에서 렌더링할 코스 정보
+                'course_info': actual_course_info
+            }
+            direction_response.append(directions)
+
+        return jsonify({
+            'success': True,
+            'route': direction_response
+        }), 200
+
+    except KeyError as e:
+        logging.error(f"KeyError in find_ways: {e}")
+        return jsonify({'success': False, 'error': f'Missing required key: {str(e)}'}), 400
+    except Exception as e:
+        logging.error(f"Error in find_ways: {e}")
+        # 디버깅을 위해 상세 에러 로깅
+        import traceback
+        logging.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)

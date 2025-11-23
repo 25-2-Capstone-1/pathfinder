@@ -41,7 +41,7 @@ def generate_loop_waypoints(center, radius, num_waypoints, routeId):
     return waypoints
 
 #num_waypoints = 15로 일단 통일, 생성 루트 수는 5개로 제한
-def generate_loop_course(start, end, target_distance, tolerance):
+def generate_loop_course(my, start, end, target_distance, tolerance):
     logging.info("Attempting to generate a 'loop' course.")
 
     direct_dist = haversine(start[0], start[1], end[0], end[1])
@@ -56,7 +56,7 @@ def generate_loop_course(start, end, target_distance, tolerance):
     center_point = start
 
     #1.1은 임의의 값
-    loop_radius = (extra_needed / (2 * math.pi)) * 1.1 if extra_needed > 0 else 0
+    loop_radius = (extra_needed / (2 * math.pi)) * 1.0 if extra_needed > 0 else 0
 
     #num_waypoints = max(4, min(8, int(loop_radius / 200)))
     #waypoint 수 도 조정을 해야함
@@ -65,7 +65,7 @@ def generate_loop_course(start, end, target_distance, tolerance):
     for i in range(MAX_ROUTE_ID):
         routeId = i
         waypoints = generate_loop_waypoints(center_point, loop_radius, MAX_WAYPOINTS_PER_ROUTE, routeId)
-        path = [start] + waypoints
+        path = [my, start] + waypoints
         if is_start_end_same:
             path.append(start)
         else:
