@@ -2,6 +2,7 @@ import math
 import logging
 
 from app.utils import haversine, round_coord
+from app.course_generator.response_creator import calculate_path_details, build_course_response
 
 #기본적인 동작은 loop와 같음->loop 참고
 #삼각형과 비슷한 코스 생성될 예정(시작 -> 중간점 -> 끝)
@@ -26,7 +27,7 @@ def generate_detour_course(my, start, end, target_distance, tolerance):
     route_number = 0 # 생성된 루트가 몇 번 째 것이 몇 번 째 코스인지 표시
     response_array = []
 
-    for multiplier in [1.0, 0.75, 1.25, 0.5, 1.5]:
+    for multiplier in [1.0, 0.75, 1.25]:
         adjusted_offset_dist = offset_dist_meters * multiplier
         offset_lat_degrees = adjusted_offset_dist / METERS_PER_DEGREE_LATITUDE
         meters_per_degree_lng = METERS_PER_DEGREE_LATITUDE * math.cos(math.radians(mid_lat))
@@ -43,7 +44,7 @@ def generate_detour_course(my, start, end, target_distance, tolerance):
         waypoint = round_coord((wp_lat, wp_lng))
         path = [my, start, waypoint, end]
 
-        from response_creator import calculate_path_details, build_course_response
+
         total_dist, segment = calculate_path_details(path)
 
         logging.info(f"Rout Number {route_number} -> Trying waypoint {waypoint} -> Total distance: {total_dist:.0f}m")

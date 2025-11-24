@@ -1,7 +1,6 @@
 import math
 
-# 위도 1 도당 미터 수
-MAX_ROUTE_ID = 5
+MAX_ROUTE_ID = 3
 MAX_WAYPOINTS_PER_ROUTE= 10
 
 def haversine(lat1, lon1, lat2, lon2):
