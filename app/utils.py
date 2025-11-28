@@ -1,7 +1,7 @@
 import math
 
 MAX_ROUTE_ID = 3
-MAX_WAYPOINTS_PER_ROUTE= 10
+MAX_WAYPOINTS_PER_ROUTE= 4
 
 def haversine(lat1, lon1, lat2, lon2):
     """Calculate distance between two coordinates in meters."""

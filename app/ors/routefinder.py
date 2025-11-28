@@ -146,10 +146,16 @@ def get_directions(my_lat, my_lng, course_arr):
             path = data['paths'][0]
 
             # GET POINTS w/ ELEVATION
+            """
+            points: {
+            "coordinates": [[lng, lat, ele], ...]
+            }
+            """
             gh_points = path['points']['coordinates']  # [lng,lat,ele]
 
             # CALC SLOPE
             #slope_data = calc_slope(gh_points)
+            # 여기서 difficulty 계산을 수행
 
             results.append(OrderedDict([
                 ("routeId", course["routeId"]),

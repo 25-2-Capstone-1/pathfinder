@@ -40,7 +40,7 @@ def generate_loop_waypoints(center, radius, num_waypoints, routeId):
 
     return waypoints
 
-#num_waypoints = 15로 일단 통일, 생성 루트 수는 5개로 제한
+#num_waypoints = 10으로 일단 통일, 생성 루트 수는 3개로 제한
 def generate_loop_course(my, start, end, target_distance, tolerance):
     logging.info("Attempting to generate a 'loop' course.")
 

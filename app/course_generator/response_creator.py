@@ -27,7 +27,7 @@ def build_course_response(strategy, path, target_distance, course_number, **kwar
 
     total_distance, segments = calculate_path_details(path)
     waypoints = []
-    for i in range(2, len(path) - 1): # 시작점(1)과 끝점(-1) 사이의 경로만 waypoints로 넣을 경우 index 2부터 시작
+    for i in range(1, len(path) - 1): # 시작점(1)과 끝점(-1) 사이의 경로만 waypoints로 넣을 경우 index 1부터 시작
         p_lng, p_lat = path[i][0], path[i][1] # [lng, lat] 순서 유지
         waypoints.append({'lat': p_lat, 'lng': p_lng})
 
