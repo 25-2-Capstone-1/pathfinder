@@ -118,7 +118,7 @@ def verify_with_google(course, use_google_api):
     return course
 
 
-def create_course(my, start, end, target_distance, use_google_api, tolerance=0.3, strategy='auto'):
+def create_course(my, start, end, target_distance, use_google_api, tolerance=0.5, strategy='auto'):
     my_coord = parse_location(my)
     start_coord = parse_location(start)
     end_coord = parse_location(end)
@@ -168,7 +168,7 @@ def find_ways():
         my = (my_data['lat'], my_data['lng'])
         start = (start_data['lat'], start_data['lng'])
         end = (end_data['lat'], end_data['lng'])
-        target_distance = (info_input.get('targetDistance'))*0.9  # 90%로 조정
+        target_distance = (info_input.get('targetDistance'))*0.8  # 90%로 조정
 
         # 2. 코스 생성
         data = create_course(my, start, end, target_distance, use_google_api=False)
