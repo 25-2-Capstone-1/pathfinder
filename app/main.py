@@ -118,7 +118,7 @@ def verify_with_google(course, use_google_api):
     return course
 
 
-def create_course(my, start, end, target_distance, use_google_api, tolerance=0.5, strategy='auto'):
+def create_course(my, start, end, target_distance, use_google_api, tolerance=1.0, strategy='auto'):
     my_coord = parse_location(my)
     start_coord = parse_location(start)
     end_coord = parse_location(end)
