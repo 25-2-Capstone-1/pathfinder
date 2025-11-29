@@ -1,3 +1,4 @@
+
 # python
 import math
 import logging
@@ -71,19 +72,27 @@ def generate_loop_course(my, start, end, target_distance, tolerance):
     is_start_end_same = direct_dist < 10.0
 
     extra_needed = target_distance - direct_dist if not is_start_end_same else target_distance
+
+    # 최소/최대 반지름 상수 (early 사용을 위해 여기서 정의)
+    MIN_RADIUS = 20.0
+    MAX_RADIUS = 5000.0
+
+    # extra_needed가 거의 0이거나 음수라도 최소 루프를 생성하도록 강제
     if extra_needed <= 1.0:
-        logging.info("No extra distance required or negative extra_needed; cannot generate loop.")
-        return {'success': False, 'error': 'Could not generate a loop course within the specified tolerance.'}
+        logging.info("extra_needed is very small or negative; forcing minimal loop radius.")
+        extra_needed = 2 * math.pi * MIN_RADIUS
 
     # desired circumference is extra_needed (approx)
     loop_radius = extra_needed / (2 * math.pi)
 
     # clamp radius to reasonable bounds
-    MIN_RADIUS = 20.0
-    MAX_RADIUS = 5000.0
     loop_radius = max(MIN_RADIUS, min(MAX_RADIUS, loop_radius))
 
     response_array = []
+    # 트라이한 후보 중 목표에 가장 근접한 것 저장
+    best_diff = float('inf')
+    best_response = None
+
     # desired waypoint spacing (meters) to decide number of waypoints
     DESIRED_SPACING = 150.0
     circumference = 2 * math.pi * loop_radius
@@ -110,12 +119,23 @@ def generate_loop_course(my, start, end, target_distance, tolerance):
         total_dist, needless = calculate_path_details(path)
         logging.info(f"Trying loop route {routeId}: {len(waypoints)} waypoints, radius {loop_radius:.0f}m, dist {total_dist:.0f}m")
 
-        if target_distance * (1 - tolerance) <= total_dist <= target_distance * (1 + tolerance):
-            logging.info(f"Found suitable loop course with route ID {routeId}.")
-            response_array.append(build_course_response('loop', path, target_distance, routeId))
+        # 후보 기록 (목표와의 차이 기준)
+        diff = abs(total_dist - target_distance)
+        candidate_response = build_course_response('loop', path, target_distance, routeId)
+        if candidate_response:
+            if diff < best_diff:
+                best_diff = diff
+                best_response = candidate_response
+
+            if target_distance * (1 - tolerance) <= total_dist <= target_distance * (1 + tolerance):
+                logging.info(f"Found suitable loop course with route ID {routeId}.")
+                response_array.append(candidate_response)
 
     if response_array:
         return {'success': True, 'course': response_array}
+    elif best_response:
+        logging.info("No route within tolerance; returning best available candidate anyway.")
+        return {'success': True, 'course': [best_response]}
     else:
-        logging.info("Could not find a suitable loop course within tolerance.")
-        return {'success': False, 'error': 'Could not generate a loop course within the specified tolerance.'}
+        logging.info("Could not generate any loop candidate.")
+        return {'success': False, 'error': 'Could not generate a loop course.'}
