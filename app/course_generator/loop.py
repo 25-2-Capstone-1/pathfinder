@@ -1,5 +1,4 @@
-
-# python
+#마짐가 수정 1130
 import math
 import logging
 from app.utils import haversine, round_coord, MAX_ROUTE_ID, MAX_WAYPOINTS_PER_ROUTE
@@ -8,8 +7,8 @@ from app.course_generator.response_creator import build_course_response, calcula
 METERS_PER_DEGREE_LATITUDE = 111000  # 약 11.1km
 
 def _meters_per_degree_lng_at(lat):
-    cosv = math.cos(math.radians(lat))
-    return METERS_PER_DEGREE_LATITUDE * (cosv if abs(cosv) > 1e-6 else 1e-6)
+    cosvar = math.cos(math.radians(lat))
+    return METERS_PER_DEGREE_LATITUDE * (cosvar if abs(cosvar) > 1e-6 else 1e-6)
 
 def generate_loop_waypoints(center, radius, num_waypoints, routeId):
     waypoints = []
@@ -37,26 +36,47 @@ def _compute_loop_center_for_segment(start, end, radius, routeId):
     mid_lat = (start_lat + end_lat) / 2.0
     mid_lng = (start_lng + end_lng) / 2.0
 
+    #위도 경도별 미터 달라져서 있긴 해야 된느데
+    #한국 같이 ㅈ만한 땅에서 있어야 되나 싶긴...
     meters_per_degree_lng = _meters_per_degree_lng_at((start_lat + end_lat) / 2.0)
 
-    # vector from start to end in meters (x: lng meters, y: lat meters)
+
     dx = (end_lng - start_lng) * meters_per_degree_lng
     dy = (end_lat - start_lat) * METERS_PER_DEGREE_LATITUDE
 
-    # perpendicular vector
+    # 꺾는 방향, 법선 벡터 계산
+    #hypot은 유클리드거리 hypot(3,4) = 5 -> 기존으로 계산하던 euclid_dist 삭제
     perp_x, perp_y = -dy, dx
     length = math.hypot(perp_x, perp_y)
-    if length < 1e-6:
-        # fallback: arbitrary perpendicular (east)
-        perp_x, perp_y = 1.0, 0.0
-        length = 1.0
 
-    # choose side to offset based on routeId to generate different routes
+    # 8방향 탐색(4방향 탐색하면 동쪽으로만 탐색함)
+    NUM_DIRECTIONS = 8
+
+    # 그냥 시작할 방향 선정하는데 -> 상황에 맞춰서 조금 더 고도화가 필요 할 수 도 있음
     side = 1 if (routeId % 2 == 0) else -1
-    # increase offset slightly for higher routeId groups to diversify
     multiplier = 1 + (routeId // 2) * 0.3
-    shift_x_m = perp_x / length * radius * side * multiplier
-    shift_y_m = perp_y / length * radius * side * multiplier
+
+    # select a direction index from routeId to spread across NUM_DIRECTIONS
+    dir_index = routeId % NUM_DIRECTIONS
+    rotation_angle = (2 * math.pi * dir_index) / NUM_DIRECTIONS
+
+    if length < 1e-6:
+
+        base_x = math.cos(rotation_angle)
+        base_y = math.sin(rotation_angle)
+        unit_x, unit_y = base_x, base_y
+    else:
+        # normalize한 법선 벡터 이용
+        unit_x, unit_y = perp_x / length, perp_y / length
+        # 선택된 방향으로 회전
+        cos_a = math.cos(rotation_angle)
+        sin_a = math.sin(rotation_angle)
+        rot_x = unit_x * cos_a - unit_y * sin_a
+        rot_y = unit_x * sin_a + unit_y * cos_a
+        unit_x, unit_y = rot_x, rot_y
+
+    shift_x_m = unit_x * radius * side * multiplier
+    shift_y_m = unit_y * radius * side * multiplier
 
     shift_lat = shift_y_m / METERS_PER_DEGREE_LATITUDE
     shift_lng = shift_x_m / meters_per_degree_lng
