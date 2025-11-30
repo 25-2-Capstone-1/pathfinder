@@ -200,6 +200,11 @@ def find_ways():
             #myPoint를 lat, lng 형태로 get으로 받았기 때문에 순서 반대로 lng, lat이 되도록 넣기
             my2start_route = my2start(my[1], my[0], actual_course_info)
             start2end_route = start2end(actual_course_info)
+            if start2end_route and isinstance(start2end_route.get('distance'), (int, float)):
+                try:
+                    actual_course_info['distance'] = round(start2end_route['distance'], 1)
+                except Exception as e:
+                    logging.warning(f"Could not overwrite course distance: {e}")
 
             directions = {
                 'my2start': my2start_route,

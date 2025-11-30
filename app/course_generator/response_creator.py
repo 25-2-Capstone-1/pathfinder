@@ -32,8 +32,8 @@ def build_course_response(strategy, path, target_distance, course_number, **kwar
         waypoints.append({'lat': p_lat, 'lng': p_lng})
 
 
-    estimated_time = int((total_distance / 10) * 60)  # 분 단위 (속도 10km/h 가정)
-
+    estimated_time = int((total_distance / 20) * 60)  # 분 단위 (속도 10km/h 가정)
+    #난이도 계산
     if total_distance < 3000:
         difficulty = 'easy'
     elif total_distance < 5000:
