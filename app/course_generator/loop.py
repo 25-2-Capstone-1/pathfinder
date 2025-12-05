@@ -89,7 +89,7 @@ def generate_loop_course(my, start, end, target_distance, tolerance):
     logging.info("Attempting to generate a 'loop' course.")
 
     direct_dist = haversine(start[0], start[1], end[0], end[1])
-    is_start_end_same = direct_dist < 10.0
+    is_start_end_same = direct_dist < 10.0 #10m이내
 
     extra_needed = target_distance - direct_dist if not is_start_end_same else target_distance
 

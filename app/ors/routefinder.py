@@ -108,9 +108,13 @@ def start2end(course):
         data = response.json()
         path = data['paths'][0]
 
+        # 신호등 개수 계산
+        traffic_signal_count = count_traffic_signals(path.get('instructions', []))
+
         return OrderedDict([
             ("distance", round(path['distance'], 2)),
             ("instructions", path.get('instructions', [])),
+            ("traffic_signals", traffic_signal_count),
             ("rawGraphhopper", data)
         ])
 
@@ -179,3 +183,18 @@ def get_directions(my_lat, my_lng, course_arr):
             logging.error(f"GraphHopper response: {response.text}")
 
     return results
+
+def count_traffic_signals(instructions):
+    """
+    GraphHopper instructions에서 신호등 개수를 세기.
+    sign 값: -98 = 신호등 관련 지시
+    """
+    if not instructions:
+        return 0
+
+    signal_count = 0
+    for instruction in instructions:
+        # GraphHopper에서 신호등은 sign: -98로 표현될 수 있음
+        if instruction.get('sign') == -98:
+            signal_count += 1
+    return signal_count

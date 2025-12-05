@@ -4,6 +4,8 @@ import sys
 
 from flask import Flask, jsonify, request
 
+from app.ors.recommender import score_route
+
 # 프로젝트 루트 설정
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 if project_root not in sys.path:
@@ -17,7 +19,7 @@ from app.utils import haversine, round_coord
 from app.findIsochrone import get_distances_batch
 from app.course_generator.detour import generate_detour_course
 from app.course_generator.loop import generate_loop_course
-from app.ors.routefinder import start2end, my2start
+from app.ors.routefinder import start2end, my2start, calc_slope
 
 app = Flask(__name__)
 
@@ -151,16 +153,23 @@ def create_course(my, start, end, target_distance, use_google_api, tolerance=1.0
 # --- API Endpoints ---
 
 @app.route('/routes/findway', methods=['POST'])
+@app.route('/routes/findway', methods=['POST'])
 def find_ways():
+    from app.ors.osm_signals import count_signals_near_path
+
     info_input = request.get_json()
     if not info_input:
         return jsonify({'success': False, 'error': 'No JSON data'}), 400
 
     try:
-        # 1. 입력 파싱
         my_data = info_input.get('myPoint', {})
         start_data = info_input.get('startPoint', {})
         end_data = info_input.get('endPoint', {})
+
+        user_slope_pref = info_input.get('slope')
+        user_traffic_lights_pref = info_input.get('trafficLights')
+        user_traffic_congestion_pref = info_input.get('trafficCongestion')
+        max_slope_filter = info_input.get('max_slope_rating')
 
         if not (my_data and start_data and end_data):
             return jsonify({'success': False, 'error': 'Missing point data'}), 400
@@ -168,50 +177,95 @@ def find_ways():
         my = (my_data['lat'], my_data['lng'])
         start = (start_data['lat'], start_data['lng'])
         end = (end_data['lat'], end_data['lng'])
-        target_distance = (info_input.get('targetDistance'))*0.9  # 80%로 조정
+        target_distance = (info_input.get('targetDistance')) * 0.9
 
-        # 2. 코스 생성
         data = create_course(my, start, end, target_distance, use_google_api=False)
 
-        # 3. 에러 체크
         if not data or (isinstance(data, dict) and 'error' in data):
             return jsonify(data if data else {'success': False, 'error': 'Course generation failed'}), 400
 
         direction_response = []
 
-        # data 구조: { 'success': True, 'course': [ {build_course_response 결과}, ... ] }
-        # build_course_response 결과: { "myPoint_lat":..., "course": [ {실제 코스} ] }
         if not data.get('course'):
             return jsonify({'success': False, 'error': 'No course data generated'}), 400
 
         for response_wrapper in data['course']:
-            # response_wrapper: { "myPoint_lat":..., "course": [ {실제 코스 정보} ] }
-            #각각의 요소를 탐색함
             if not response_wrapper.get('course'):
                 continue
 
-            #실제 응답의 첫 번째 요소-> 실제 코스
             actual_course_info = response_wrapper['course'][0]
 
-            # 🔍 디버깅 로그
-            logging.info(f"🔍 actual_course_info keys: {actual_course_info.keys()}")
-            logging.info(f"🔍 startPoint: {actual_course_info.get('startPoint')}")
-
-            #myPoint를 lat, lng 형태로 get으로 받았기 때문에 순서 반대로 lng, lat이 되도록 넣기
             my2start_route = my2start(my[1], my[0], actual_course_info)
             start2end_route = start2end(actual_course_info)
+
             if start2end_route and isinstance(start2end_route.get('distance'), (int, float)):
                 try:
                     actual_course_info['distance'] = round(start2end_route['distance'], 1)
-                except Exception as e:
-                    logging.warning(f"Could not overwrite course distance: {e}")
+                except Exception:
+                    pass
 
             directions = {
                 'my2start': my2start_route,
                 'start2end': start2end_route,
-                # 프론트엔드에서 렌더링할 코스 정보
                 'course_info': actual_course_info
             }
+
+            try:
+                gh_points = None
+                if start2end_route and start2end_route.get('rawGraphhopper'):
+                    gh_raw = start2end_route['rawGraphhopper']
+                    paths = gh_raw.get('paths') or []
+                    if paths and isinstance(paths, list):
+                        gh_points = paths[0].get('points', {}).get('coordinates')
+
+                # 1) Slope 계산
+                route_slope_rating = None
+                if gh_points:
+                    slopes = calc_slope(gh_points)
+                    if slopes:
+                        max_slope_percent = max(abs(s['slope_percent']) for s in slopes)
+                        route_slope_rating = min(10, max(1, int(round(max_slope_percent / 3.0) + 1)))
+
+                if max_slope_filter is not None and route_slope_rating is not None:
+                    try:
+                        if float(route_slope_rating) > float(max_slope_filter):
+                            logging.info(f"Route {actual_course_info.get('routeId')} filtered out by max_slope_filter "
+                                         f"({route_slope_rating} > {max_slope_filter})")
+                            continue
+                    except Exception:
+                        pass
+
+                # 2) OSM 신호등 데이터 추출
+                osm_signal_count = 0
+                if gh_points:
+                    try:
+                        # [lng, lat, ele] → [(lat, lng)] 변환
+                        path_list = [(p[1], p[0]) for p in gh_points]
+                        osm_signal_count = count_signals_near_path(path_list, buffer_distance_m=100)
+                        logging.info(f"OSM traffic signals found for route {actual_course_info.get('routeId')}: {osm_signal_count}")
+                    except Exception as e:
+                        logging.warning(f"Could not extract OSM signals: {e}")
+                        osm_signal_count = 0
+
+                # 3) 추천 점수 계산
+                distance_val = float(start2end_route.get('distance', 0.0)) if start2end_route else 0.0
+
+                rec = score_route(
+                    distance_m=distance_val,
+                    target_distance_m=target_distance,
+                    elev_points=gh_points,
+                    slope_rating=user_slope_pref,
+                    traffic_lights_rating=osm_signal_count,  # OSM 신호등 데이터 사용
+                    traffic_congestion_rating=user_traffic_congestion_pref
+                )
+
+                directions['recommendation'] = rec
+                if route_slope_rating is not None:
+                    directions['course_info']['computed_slope_rating'] = route_slope_rating
+
+            except Exception as e:
+                logging.warning(f"Could not compute recommendation for route {actual_course_info.get('routeId')}: {e}")
+
             direction_response.append(directions)
 
         return jsonify({
@@ -224,11 +278,9 @@ def find_ways():
         return jsonify({'success': False, 'error': f'Missing required key: {str(e)}'}), 400
     except Exception as e:
         logging.error(f"Error in find_ways: {e}")
-        # 디버깅을 위해 상세 에러 로깅
         import traceback
         logging.error(traceback.format_exc())
         return jsonify({'success': False, 'error': str(e)}), 500
-
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
